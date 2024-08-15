@@ -1,0 +1,436 @@
+#!/usr/bin/env bash
+#
+# SPDX-License-Identifier: AGPL-3.0
+
+_bin="$( \
+  dirname \
+    "$( \
+      command \
+        -v \
+	  "env")")"
+_lib="${_bin}/../lib"
+_share="${_bin}/../share"
+source \
+  "${_lib}/libcrash-bash/crash-bash"
+
+_requirements() {
+  local \
+    _os
+  _os="$( \
+    uname \
+      -o)"
+  if [[ "${_os}" == 'Android' ]]; then
+    _check_cmd \
+      "activity-launch" \
+      "android-utils"
+    _check_cmd \
+      "activity-focused" \
+      "android-utils"
+  fi
+}
+
+# shellcheck disable=SC2034
+_global_variables() {
+  view_date=""
+  view_length=""
+  poll_interval=""
+  camera_app=""
+  display_dim=""
+  touch_disabled=""
+  color=""
+  quiet=""
+}
+
+_stop() {
+  local \
+    _app="${2}"
+    _cmd=()
+  # _cmd=(
+  #   "mv"
+  #   "${_device}"
+  #   "${_device}.disabled"
+  # )
+  # su \
+  #   -c \
+  #   "${_cmd[*]}"
+}
+
+_start() {
+  local \
+    _duration="${1}" \
+    _poll="${2}" \
+    _app="${3}" \
+    _cmd=() \
+    _set \
+    _conf
+  _cmd=(
+    _service \
+      "${_duration}" \
+      "${_poll}" \
+      "${_app}"
+  )
+  _conf="$( \
+    _get_conf_path)"
+  _write_setting \
+    "${_conf}" \
+    "camera_mode" \
+    "enabled"
+  _set="$( \
+    _read_setting \
+      "${_conf}" \
+      "camera_mode")"
+  _msg_info \
+    "set 'camera mode' '${_set}' onto ${_conf}"
+  # su \
+  #   -c \
+  #   "${_cmd[*]}"
+  "${_cmd[@]}"
+}
+
+_status() {
+  local \
+    _status \
+    _conf
+  _conf="$( \
+    _get_conf_path)"
+  _status="$( \
+    _read_setting \
+      "${_conf}" \
+      "camera_mode")"
+  echo \
+    "${_status}"
+}
+
+_activity_check() {
+  local
+    _current_activity="${1}"
+  if [[ "${_current_activity}" != "${_app}/${_app}.MainActivity" ]]; then
+    _msg_info \
+      "Current activity: ${_current_activity}"
+    _msg_info \
+      "Target activity: ${_app}/${_app}.MainActivity"
+    activity-launch \
+      "${_camera_app_opts[@]}" \
+      "${_app}" \
+      "MainActivity" || \
+      true
+  fi
+} 
+
+_brightness_check() {
+  local \
+    _current_brightness
+  _current_brightness="$( \
+    bbrightnessctl \
+      "${_bbrightnessctl_opts[@]}" \
+      -m \
+        root \
+      get || \
+      true)"
+  if \
+    (( "1" <= "${_current_brightness}" )); then
+    _msg_info \
+      "Current brightness: ${_current_brightness}"
+    bbrightnessctl \
+      -m \
+        root \
+      set \
+        0 || \
+      true
+  fi
+}
+
+_service() {
+  local \
+    _duration="${1}" \
+    _poll="${2}" \
+    _app="${3}" \
+    _dim="${4}" \
+    _touch_disabled="${5}"
+    _bbrightnessctl_opts=() \
+    _touchctl_opts=() \
+    _camera_app_opts=() \
+    _touchctl_opts=() \
+    _time=0 \
+    _current_brightness \
+    _conf \
+    _touch_status \
+    _old_activity
+  _conf="$( \
+    _get_conf_path)"
+  _old_activity="$( \
+    activity-focused)"
+  if [[ "quiet" != "y" ]]; then
+    _bbrightnessctl_opts+=(
+      -v
+    )
+    _touchctl_opts+=(
+      -v
+    )
+    _camera_app_opts+=(
+      -v
+    )
+  fi
+  _touch_status="$( \
+    touchctl \
+      status)"
+  if [[ "${_touch_status}" == "enabled" ]] && \
+     [[ "${_touch_disabled}" == "y" ]]; then
+    _msg_info \
+      "Disabling touch input"
+    touchctl \
+      "${_touchctl_opts[@]}" \
+      disable || \
+    true
+  fi
+  while \
+    (( "${_time}" < "${_duration}" )); do
+    _current_activity="$( \
+      activity-focused)"
+    _activity_check \
+      "${_current_activity}"
+    if [[ "${_dim}" == "y" ]]; then
+      _brightness_check
+    fi
+    sleep \
+      "${_poll}"
+    _time="$(( \
+      _time + _poll ))"
+  done
+  _touch_status="$( \
+    touchctl \
+      status)"
+  if \
+    [[ "${_touch_status}" == "disabled" ]] && \
+    [[ "${_touch_disabled}" == "y" ]]; then
+    _msg_info \
+      "Enabling touch input"
+    touchctl \
+      "${_touchctl_opts[@]}" \
+      enable || \
+    true
+  fi
+  # activity-launch \
+  #   "${_old_activity}" \
+  #   "${_old_activity}" || \
+  #     true
+  _write_setting \
+    "${_conf}" \
+    "camera_mode" \
+    "disabled"
+}
+
+_android_camera() {
+  local \
+    _duration="${1}" \
+    _app="${2}" \
+    _poll="${3}" \
+    _dim="${4}" \
+    _touch_disabled="${5}" \
+    _cmd_opts=() \
+    _opts=() \
+    _conf
+  shift \
+    5
+  _opts=(
+    "$@"
+  )
+  _conf="$( \
+    _get_conf_path)"
+  # _a="$( \
+  #     _read_settings \
+  #       "${_conf}" \
+  #       "${_host}" \
+  #       "port")"
+  # 'net.sourceforge.opencamera' 'MainActivity'
+  _cmd_opts+=(
+    "${_duration}"
+    "${_poll}"
+    "${_app}"
+    "${_dim}"
+    "${_touch_disabled}"
+  )
+  "_service" \
+    "${_cmd_opts[@]}" \
+    "${_opts[*]}"
+}
+
+_camera_app_auto_detect() {
+  local \
+    _os
+  _os="$( \
+    uname \
+      -o)"
+  if [[ "${_os}" == 'Android' ]]; then
+    echo \
+      'net.sourceforge.opencamera'
+  fi
+}
+
+_get_conf_path() {
+  local \
+    _dir \
+    _conf
+  _dir="${HOME}/.config/android-camera"
+  _conf="${_dir}/$( \
+    _get \
+      "app" \
+      "name").cfg"
+  echo \
+    "${_conf}"
+}
+
+_set_overrides() {
+  _set_override \
+    "view" \
+    "date" \
+    "$(_get_date_human)"
+  _set_override \
+    "view" \
+    "length" \
+    "$(( 10 * 60 ))" # 10 minutes
+    # "$(( 60 * 60 * 24 ))" # 24 hours
+  _set_override \
+    "camera" \
+    "app" \
+    "$(_camera_app_auto_detect)"
+  _set_override \
+    "poll" \
+    "interval" \
+    "30"
+  _set_override \
+    "display" \
+    "dim" \
+    "n"
+  _set_override \
+    "touch" \
+    "disabled" \
+    "n"
+  if [[ -v override_color ]]; then
+    color="${override_color}"
+  elif [[ -z "${color}" ]]; then
+    color="n"
+  fi
+  if [[ -v override_quiet ]]; then
+    quiet="${override_quiet}"
+  elif [[ -z "${quiet}" ]]; then
+    quiet="y"
+  fi
+}
+
+# Shows configuration options.
+_show_config() {
+  _msg_info "${app_name} configuration"
+  _msg_info "                View date:   $(_get "view" "date")"
+  _msg_info "            Poll interval:   $(_get "poll" "interval")"
+  _msg_info "               Camera app:   $(_get "camera" "app")"
+  _msg_info "              Display dim:   $(_get "display" "dim")"
+  _msg_info "           Touch disabled:   $(_get "touch" "disabled")"
+  _msg_info "              View length:   $(_get "view" "length")"
+}
+
+# Show help usage, with an exit status.
+# $1: exit status number.
+_usage() {
+  local \
+    _usage_text
+  IFS='' \
+    read \
+      -r \
+      -d '' \
+      _usage_text << \
+        ENDUSAGETEXT || true
+
+Start an android camera for a while.
+
+Usage:
+  $(_get "app" "name")
+    [options]
+    <command>
+  commands:
+    start
+    disable
+    status
+  options:
+     -l <view_length>     View length in seconds.
+			  Default: $(_get "view" "length")
+     -a <camera_app>      Your Android camera app.
+			  Default: $(_get "camera" "app")
+     -d                   Whether to dim the screen or not.
+     -t                   Whether to disable touch or not.
+     -p                   Poll interval for brightness and
+                          touch reset in seconds.
+			  Default: $(_get "poll" "interval")
+     -h                   This message.
+     -v                   Enable verbose output
+ENDUSAGETEXT
+  _printf \
+    '%s\n' \
+    "${_usage_text}"
+  exit \
+    "${1}"
+}
+
+_globals
+_global_variables
+# shellcheck disable=SC2004
+# shellcheck disable=SC2034
+while \
+  getopts \
+    'l:a:p:dtcvh?' \
+    arg; do
+  case \
+    "${arg}" in
+    l) override_view_length="${OPTARG}" ;;
+    a) override_camera_app="${OPTARG}" ;;
+    p) override_poll_interval="${OPTARG}" ;;
+    d) override_display_dim="y" ;;
+    t) override_touch_disabled="y" ;;
+    c) override_color="y" ;;
+    v) override_quiet="n" ;;
+    h|?) _set_overrides && \
+	 _usage \
+           0 ;;
+    *)
+    _msg_error \
+      "Invalid argument '${arg}'" \
+      0 && \
+    _set_overrides && \
+    _usage \
+      1
+    ;;
+  esac
+done
+shift \
+  $(( \
+    OPTIND - 1 \
+  ))
+(( $# < 1 )) && \
+  _set_overrides && \
+  _usage \
+    1
+_set_overrides
+_config_user_init \
+  "$(_get 'app' 'name')"
+app_opts=(
+  "$(_get \
+       "view" \
+       "length")"
+  "$(_get \
+       "camera" \
+       "app")"
+  "$(_get \
+       "poll" \
+       "interval")"
+  "$(_get \
+       "display" \
+       "dim")"
+  "$(_get \
+       "touch" \
+       "disabled")"
+)
+_show_config
+_android_camera \
+  "${app_opts[@]}"
+
+# vim:set sw=2 sts=-1 et:
