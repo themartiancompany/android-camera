@@ -146,7 +146,7 @@ _service() {
     _poll="${2}" \
     _app="${3}" \
     _dim="${4}" \
-    _touch_disabled="${5}"
+    _touch_disabled="${5}" \
     _bbrightnessctl_opts=() \
     _touchctl_opts=() \
     _camera_app_opts=() \
