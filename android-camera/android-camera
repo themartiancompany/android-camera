@@ -405,10 +405,6 @@ shift \
   $(( \
     OPTIND - 1 \
   ))
-(( $# < 1 )) && \
-  _set_overrides && \
-  _usage \
-    1
 _set_overrides
 _config_user_init \
   "$(_get 'app' 'name')"
