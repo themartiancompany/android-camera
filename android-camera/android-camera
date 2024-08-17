@@ -377,11 +377,11 @@ _global_variables
 # shellcheck disable=SC2034
 while \
   getopts \
-    'l:a:p:dtcvh?' \
+    'L:a:p:dtcvh?' \
     arg; do
   case \
     "${arg}" in
-    l) override_view_length="${OPTARG}" ;;
+    L) override_view_length="${OPTARG}" ;;
     a) override_camera_app="${OPTARG}" ;;
     p) override_poll_interval="${OPTARG}" ;;
     d) override_display_dim="y" ;;
