@@ -352,7 +352,7 @@ Usage:
     disable
     status
   options:
-     -l <view_length>     View length in seconds.
+     -L <view_length>     View length in seconds.
 			  Default: $(_get "view" "length")
      -a <camera_app>      Your Android camera app.
 			  Default: $(_get "camera" "app")
