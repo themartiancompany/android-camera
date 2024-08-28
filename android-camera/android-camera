@@ -58,6 +58,11 @@ _android_camera() {
   )
   _conf="$( \
     _get_conf_path)"
+  if [[ "${quiet}" != "y" ]]; then
+    _activity_launch_opts+=(
+     -v
+    )
+  fi
   if (( 0 < "${_duration}" )); then
     _activity_launch_opts+=(
      -L
