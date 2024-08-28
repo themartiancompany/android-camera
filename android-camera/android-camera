@@ -41,185 +41,6 @@ _global_variables() {
   quiet=""
 }
 
-_stop() {
-  local \
-    _app="${2}"
-    _cmd=()
-  # _cmd=(
-  #   "mv"
-  #   "${_device}"
-  #   "${_device}.disabled"
-  # )
-  # su \
-  #   -c \
-  #   "${_cmd[*]}"
-}
-
-_start() {
-  local \
-    _duration="${1}" \
-    _poll="${2}" \
-    _app="${3}" \
-    _cmd=() \
-    _set \
-    _conf
-  _cmd=(
-    _service \
-      "${_duration}" \
-      "${_poll}" \
-      "${_app}"
-  )
-  _conf="$( \
-    _get_conf_path)"
-  _write_setting \
-    "${_conf}" \
-    "camera_mode" \
-    "enabled"
-  _set="$( \
-    _read_setting \
-      "${_conf}" \
-      "camera_mode")"
-  _msg_info \
-    "set 'camera mode' '${_set}' onto ${_conf}"
-  # su \
-  #   -c \
-  #   "${_cmd[*]}"
-  "${_cmd[@]}"
-}
-
-_status() {
-  local \
-    _status \
-    _conf
-  _conf="$( \
-    _get_conf_path)"
-  _status="$( \
-    _read_setting \
-      "${_conf}" \
-      "camera_mode")"
-  echo \
-    "${_status}"
-}
-
-_activity_check() {
-  local
-    _current_activity="${1}"
-  if [[ "${_current_activity}" != "${_app}/${_app}.MainActivity" ]]; then
-    _msg_info \
-      "Current activity: ${_current_activity}"
-    _msg_info \
-      "Target activity: ${_app}/${_app}.MainActivity"
-    activity-launch \
-      "${_camera_app_opts[@]}" \
-      "${_app}" \
-      "MainActivity" || \
-      true
-  fi
-} 
-
-_brightness_check() {
-  local \
-    _current_brightness
-  _current_brightness="$( \
-    bbrightnessctl \
-      "${_bbrightnessctl_opts[@]}" \
-      -m \
-        root \
-      get || \
-      true)"
-  if \
-    (( "1" <= "${_current_brightness}" )); then
-    _msg_info \
-      "Current brightness: ${_current_brightness}"
-    bbrightnessctl \
-      -m \
-        root \
-      set \
-        0 || \
-      true
-  fi
-}
-
-_service() {
-  local \
-    _duration="${1}" \
-    _poll="${2}" \
-    _app="${3}" \
-    _dim="${4}" \
-    _touch_disabled="${5}" \
-    _bbrightnessctl_opts=() \
-    _touchctl_opts=() \
-    _camera_app_opts=() \
-    _touchctl_opts=() \
-    _time=0 \
-    _current_brightness \
-    _conf \
-    _touch_status \
-    _old_activity
-  _conf="$( \
-    _get_conf_path)"
-  _old_activity="$( \
-    activity-focused)"
-  if [[ "quiet" != "y" ]]; then
-    _bbrightnessctl_opts+=(
-      -v
-    )
-    _touchctl_opts+=(
-      -v
-    )
-    _camera_app_opts+=(
-      -v
-    )
-  fi
-  _touch_status="$( \
-    touchctl \
-      status)"
-  if [[ "${_touch_status}" == "enabled" ]] && \
-     [[ "${_touch_disabled}" == "y" ]]; then
-    _msg_info \
-      "Disabling touch input"
-    touchctl \
-      "${_touchctl_opts[@]}" \
-      disable || \
-    true
-  fi
-  while \
-    (( "${_time}" < "${_duration}" )); do
-    _current_activity="$( \
-      activity-focused)"
-    _activity_check \
-      "${_current_activity}"
-    if [[ "${_dim}" == "y" ]]; then
-      _brightness_check
-    fi
-    sleep \
-      "${_poll}"
-    _time="$(( \
-      _time + _poll ))"
-  done
-  _touch_status="$( \
-    touchctl \
-      status)"
-  if \
-    [[ "${_touch_status}" == "disabled" ]] && \
-    [[ "${_touch_disabled}" == "y" ]]; then
-    _msg_info \
-      "Enabling touch input"
-    touchctl \
-      "${_touchctl_opts[@]}" \
-      enable || \
-    true
-  fi
-  # activity-launch \
-  #   "${_old_activity}" \
-  #   "${_old_activity}" || \
-  #     true
-  _write_setting \
-    "${_conf}" \
-    "camera_mode" \
-    "disabled"
-}
-
 _android_camera() {
   local \
     _duration="${1}" \
@@ -227,7 +48,7 @@ _android_camera() {
     _poll="${3}" \
     _dim="${4}" \
     _touch_disabled="${5}" \
-    _cmd_opts=() \
+    _activity_launch_opts=() \
     _opts=() \
     _conf
   shift \
@@ -237,22 +58,28 @@ _android_camera() {
   )
   _conf="$( \
     _get_conf_path)"
-  # _a="$( \
-  #     _read_settings \
-  #       "${_conf}" \
-  #       "${_host}" \
-  #       "port")"
-  # 'net.sourceforge.opencamera' 'MainActivity'
-  _cmd_opts+=(
-    "${_duration}"
-    "${_poll}"
-    "${_app}"
-    "${_dim}"
-    "${_touch_disabled}"
-  )
-  "_service" \
-    "${_cmd_opts[@]}" \
-    "${_opts[*]}"
+  if (( 0 < "${_duration}" )); then
+    _activity_launch_opts+=(
+     -L
+       "${_duration}"
+     -p
+       "${_poll}"
+    )
+  fi
+  if [[ "${_dim}" == "y" ]]; then
+    _activity_launch_opts+=(
+     -d
+    )
+  fi
+  if [[ "${_touch_disabled}" == "y" ]]; then
+    _activity_launch_opts+=(
+     -t
+    )
+  fi
+  activity-launch \
+    "${_activity_launch_opts[@]}" \
+    "${_app}" \
+    "MainActivity" 
 }
 
 _camera_app_auto_detect() {
@@ -346,11 +173,6 @@ Start an android camera for a while.
 Usage:
   $(_get "app" "name")
     [options]
-    <command>
-  commands:
-    start
-    disable
-    status
   options:
      -L <view_length>     View length in seconds.
 			  Default: $(_get "view" "length")
