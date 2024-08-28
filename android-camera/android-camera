@@ -23,9 +23,6 @@ _requirements() {
     _check_cmd \
       "activity-launch" \
       "android-activity-utils"
-    _check_cmd \
-      "activity-focused" \
-      "android-activity-utils"
   fi
 }
 
