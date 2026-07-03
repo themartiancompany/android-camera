@@ -1,13 +1,46 @@
-#
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: AGPL-3.0
 
+#    -----------------------------------------------------
+#    Copyright © 2024, 2025, 2026  Pellegrino Prevete
+#
+#    All rights reserved
+#    -----------------------------------------------------
+#
+#    This program is free software: you can redistribute
+#    it and/or modify it under the terms of the
+#    GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of
+#    the License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it
+#    will be useful, but WITHOUT ANY WARRANTY;
+#    without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#    See the GNU Affero General Public License for
+#    more details.
+#
+#    You should have received a copy of the
+#    GNU Affero General Public License
+#    along with this program.
+#    If not, see <https://www.gnu.org/licenses/>.
+
+_PROJECT=android-camera
 PREFIX ?= /usr/local
-DOC_DIR=$(DESTDIR)$(PREFIX)/share/doc/android-camera
-DATA_DIR=$(DESTDIR)$(PREFIX)/share/android-camera
+DOC_DIR=$(DESTDIR)$(PREFIX)/share/doc/$(_PROJECT)
+DATA_DIR=$(DESTDIR)$(PREFIX)/share/$(_PROJECT)
 BIN_DIR=$(DESTDIR)$(PREFIX)/bin
 
 DOC_FILES=$(wildcard *.rst)
-SCRIPT_FILES=$(wildcard android-camera/*)
+SCRIPT_FILES=$(wildcard $(_PROJECT)/*)
+
+PHONY_TARGETS=\
+  build-man \
+  check \
+  install \
+  install-doc \
+  install-$(_PROJECT) \
+  install-man \
+  shellcheck
 
 all:
 
@@ -16,7 +49,27 @@ check: shellcheck
 shellcheck:
 	shellcheck -s bash $(SCRIPT_FILES)
 
-install: install-android-camera install-doc
+install: install-$(_PROJECT) install-doc
+
+build-man:
+
+	git \
+	  submodule \
+	    update \
+	    --init \
+	      "man" || \
+	true
+	mkdir \
+	  -p \
+	  "build/man"
+	cd \
+	  "man"; \
+	make \
+	  build-man
+	cp \
+	  "man/build/"* \
+	  "build/man"
+
 
 install-doc:
 
@@ -24,7 +77,19 @@ install-doc:
 
 install-android-camera:
 
-	install -vdm 755 "$(BIN_DIR)"
-	install -vDm 755 android-camera/android-camera "$(BIN_DIR)"
+	install \
+	  -vdm755 \
+	  "$(BIN_DIR)"
+	install \
+	  -vDm755 \
+	  $(_PROJECT)/$(_PROJECT) \
+	  "$(BIN_DIR)"
 
-.PHONY: check install install-doc install-android-camera shellcheck
+install-man:
+
+	cd \
+	  "man"; \
+	  make \
+	    install-man
+
+.PHONY: $(PHONY_TARGETS)
