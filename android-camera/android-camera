@@ -196,15 +196,15 @@ Usage:
   ${app_name}
     [options]
   options:
-     -L <view_length>     View length in seconds.
-			  Default: ${view_length}
-     -a <camera_app>      Your Android camera app.
-			  Default: ${camera_app}
+     -L <view-length>     View length in seconds.
+                          Default: ${view_length}
+     -a <camera-app>      Your Android camera app.
+                          Default: ${camera_app}
      -d                   Whether to dim the screen or not.
      -t                   Whether to disable touch or not.
      -p                   Poll interval for brightness and
                           touch reset in seconds.
-			  Default: ${poll_interval}
+                          Default: ${poll_interval}
      -h                   This message.
      -v                   Enable verbose output
 ENDUSAGETEXT
