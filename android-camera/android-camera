@@ -1,13 +1,36 @@
 #!/usr/bin/env bash
-#
+
 # SPDX-License-Identifier: AGPL-3.0
 
-_bin="$( \
+#    -----------------------------------------------------
+#    Copyright © 2024, 2025, 2026  Pellegrino Prevete
+#
+#    All rights reserved
+#    -----------------------------------------------------
+#
+#    This program is free software: you can redistribute
+#    it and/or modify it under the terms of the
+#    GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of
+#    the License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it
+#    will be useful, but WITHOUT ANY WARRANTY;
+#    without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#    See the GNU Affero General Public License for
+#    more details.
+#
+#    You should have received a copy of the
+#    GNU Affero General Public License
+#    along with this program.
+#    If not, see <https://www.gnu.org/licenses/>.
+
+_bin="$(
   dirname \
-    "$( \
-      command \
-        -v \
-	  "env")")"
+    "$(command \
+         -v \
+	 "env")")"
 _lib="${_bin}/../lib"
 _share="${_bin}/../share"
 source \
@@ -16,7 +39,7 @@ source \
 _requirements() {
   local \
     _os
-  _os="$( \
+  _os="$(
     uname \
       -o)"
   if [[ "${_os}" == 'Android' ]]; then
@@ -53,7 +76,7 @@ _android_camera() {
   _opts=(
     "$@"
   )
-  _conf="$( \
+  _conf="$(
     _get_conf_path)"
   if [[ "${quiet}" != "y" ]]; then
     _activity_launch_opts+=(
@@ -87,7 +110,7 @@ _android_camera() {
 _camera_app_auto_detect() {
   local \
     _os
-  _os="$( \
+  _os="$(
     uname \
       -o)"
   if [[ "${_os}" == 'Android' ]]; then
@@ -101,10 +124,7 @@ _get_conf_path() {
     _dir \
     _conf
   _dir="${HOME}/.config/android-camera"
-  _conf="${_dir}/$( \
-    _get \
-      "app" \
-      "name").cfg"
+  _conf="${_dir}/${app_name}.cfg"
   echo \
     "${_conf}"
 }
@@ -150,12 +170,12 @@ _set_overrides() {
 # Shows configuration options.
 _show_config() {
   _msg_info "${app_name} configuration"
-  _msg_info "                View date:   $(_get "view" "date")"
-  _msg_info "            Poll interval:   $(_get "poll" "interval")"
-  _msg_info "               Camera app:   $(_get "camera" "app")"
-  _msg_info "              Display dim:   $(_get "display" "dim")"
-  _msg_info "           Touch disabled:   $(_get "touch" "disabled")"
-  _msg_info "              View length:   $(_get "view" "length")"
+  _msg_info "                View date:   ${view_date}"
+  _msg_info "            Poll interval:   ${poll_interval}"
+  _msg_info "               Camera app:   ${camera_app}"
+  _msg_info "              Display dim:   ${display_dim}"
+  _msg_info "           Touch disabled:   ${touch_disabled}"
+  _msg_info "              View length:   ${view_length}"
 }
 
 # Show help usage, with an exit status.
@@ -173,18 +193,18 @@ _usage() {
 Start an android camera for a while.
 
 Usage:
-  $(_get "app" "name")
+  ${app_name}
     [options]
   options:
      -L <view_length>     View length in seconds.
-			  Default: $(_get "view" "length")
+			  Default: ${view_length}
      -a <camera_app>      Your Android camera app.
-			  Default: $(_get "camera" "app")
+			  Default: ${camera_app}
      -d                   Whether to dim the screen or not.
      -t                   Whether to disable touch or not.
      -p                   Poll interval for brightness and
                           touch reset in seconds.
-			  Default: $(_get "poll" "interval")
+			  Default: ${poll_interval}
      -h                   This message.
      -v                   Enable verbose output
 ENDUSAGETEXT
@@ -231,23 +251,13 @@ shift \
   ))
 _set_overrides
 _config_user_init \
-  "$(_get 'app' 'name')"
+  "${app_name}"
 app_opts=(
-  "$(_get \
-       "view" \
-       "length")"
-  "$(_get \
-       "camera" \
-       "app")"
-  "$(_get \
-       "poll" \
-       "interval")"
-  "$(_get \
-       "display" \
-       "dim")"
-  "$(_get \
-       "touch" \
-       "disabled")"
+  "${view_length}"
+  "${camera_app}"
+  "${poll_interval}"
+  "${display_dim}"
+  "${touch_disabled}"
 )
 _show_config
 _android_camera \
